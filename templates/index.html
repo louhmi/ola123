@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Monitoreo de Gas</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        /* Tarjeta principal de estado en vivo */
+        .card {
+            background-color: #7f8c8d; /* Color gris inicial (Esperando conexión) */
+            color: white;
+            padding: 40px 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            transition: background-color 0.5s ease;
+        }
+        .card h2 { margin: 0 0 10px 0; font-size: 2.2rem; }
+        .card .lectura { font-size: 3.8rem; font-weight: bold; margin: 15px 0; }
+        .card .info { font-size: 1.1rem; opacity: 0.9; margin-bottom: 25px; }
+
+        /* Botón de Reset para apagar la alarma retenida */
+        .btn-reset {
+            background-color: white;
+            color: #333;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .btn-reset:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.05);
+        }
+        .btn-reset:active {
+            transform: scale(0.98);
+        }
+
+        /* Tabla de Historial Reciente */
+        .tabla-contenedor {
+            background-color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .tabla-contenedor h3 { 
+            margin-top: 0; 
+            color: #2c3e50; 
+            border-bottom: 2px solid #ecf0f1; 
+            padding-bottom: 12px; 
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td { padding: 14px; border-bottom: 1px solid #ecf0f1; }
+        th { background-color: #f8f9fa; color: #7f8c8d; font-weight: 600; }
+        tr:hover { background-color: #fafafa; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 Monitoreo de Gas en Tiempo Real</h1>
+
+        <div id="alerta-card" class="card">
+            <h2 id="estado">Esperando dispositivo...</h2>
+            <div id="nivel_gas" class="lectura">0 PPM</div>
+            <div class="info">Dispositivo origen: <span id="tarjeta">Ninguno</span></div>
+            
+            <button id="btn-reset" class="btn-reset" onclick="enviarReset()">
+                🔕 Desactivar Alarma
+            </button>
+        </div>
+
+        <div class="tabla-contenedor">
+            <h3>🗄️ Historial Reciente (Sincronizado con Supabase)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha y Hora</th>
+                        <th>Tarjeta Origen</th>
+                        <th>Nivel Gas</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-cuerpo">
+                    {% if historial %}
+                        {% for fila in historial %}
+                        <tr>
+                            <td>{{ fila.id }}</td>
+                            <td>{{ fila.fecha_hora }}</td>
+                            <td>{{ fila.tarjeta }}</td>
+                            <td>{{ fila.nivel_gas }} PPM</td>
+                            <td>{{ fila.estado }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #95a5a6;">No hay datos registrados en la nube todavía.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 1. Función para actualizar los números y colores en vivo cada segundo
+        function actualizarDashboard() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Solo actualizamos si ya se recibió al menos un dato real
+                    if(data.tarjeta !== "Desconectado") {
+                        document.getElementById("estado").innerText = data.estado;
+                        document.getElementById("nivel_gas").innerText = data.nivel_gas + " PPM";
+                        document.getElementById("tarjeta").innerText = data.tarjeta;
+                        
+                        // Modificar el color de la tarjeta según el peligro
+                        let card = document.getElementById("alerta-card");
+                        if (data.estado === "SEGURO") {
+                            card.style.backgroundColor = "#2ecc71"; // Verde
+                        } else if (data.estado === "ADVERTENCIA") {
+                            card.style.backgroundColor = "#f1c40f"; // Amarillo
+                        } else {
+                            card.style.backgroundColor = "#e74c3c"; // Rojo (Peligro Crítico)
+                        }
+                    }
+                })
+                .catch(err => console.error("Error al obtener estatus en vivo:", err));
+        }
+
+        // 2. Función que se ejecuta al presionar el botón para apagar el Buzzer
+        function enviarReset() {
+            fetch('/api/reset', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    alert("🔕 Señal de apagado enviada. La alarma se desactivará en la maqueta.");
+                })
+                .catch(err => {
+                    console.error("Error al enviar el reset:", err);
+                    alert("No se pudo enviar la orden de apagado.");
+                });
+        }
+
+        // Configurar para consultar a la API de Flask cada 1000ms (1 segundo)
+        setInterval(actualizarDashboard, 1000);
+    </script>
+</body>
+</html>
