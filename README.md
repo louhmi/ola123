@@ -1,5 +1,5 @@
 # Sistema de Monitoreo y registro Sensor de Gas 
-###Jefferson Borja JuanPablo Pinto
+### Jefferson Borja JuanPablo Pinto
 ## Funcionamiento
 * El sistema de monitoreo funciona con dos microcontroladores esp32, un sensor de Gas MQ-2, un led RGB y un buzzer, uno de los esp32 esta programado para leer el sensor y activar el led rgb, tambien guarda un paquete de datos de los datos de el sensor y el estado del led y se lo envia por el protocolo ESP-NOW a la segunda esp32 mediante la direccion mac.
 * El esp32 recibe este dato y se lo envia al servidor mediante USB gracias a un programa de python (bridge.py) el cual sirve para leer el puerto USB
