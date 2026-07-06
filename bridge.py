@@ -2,20 +2,20 @@ import serial
 import requests
 import time
 
-# =====================================================================
+
 # CONFIGURACIÓN DEL PUERTO SERIAL
-# (Asegúrate de que el puerto sea el correcto en tu Ubuntu, ej: /dev/ttyUSB0 o /dev/ttyACM0)
-# =====================================================================
+
+
 PUERTO_USB = '/dev/ttyUSB0'
 BAUD_RATE = 115200
 
-print(f"🔌 Conectando al puerto {PUERTO_USB}...")
+print(f" Conectando al puerto {PUERTO_USB}...")
 try:
     ser = serial.Serial(PUERTO_USB, BAUD_RATE, timeout=1)
     time.sleep(2)  # Esperamos a que se estabilice la conexión serial
-    print("✅ Conexión serial establecida con éxito.")
+    print(" Conexión serial establecida con éxito.")
 except Exception as e:
-    print(f"❌ Error crítico: No se pudo abrir el puerto {PUERTO_USB}. Verifícalo.")
+    print(f" Error crítico: No se pudo abrir el puerto {PUERTO_USB}. Verifícalo.")
     print(f"Detalle del error: {e}")
     exit()
 
@@ -37,7 +37,7 @@ while True:
                 
                 # Preparamos el paquete para enviarlo localmente a Flask
                 payload = {
-                    "tarjeta": "ESP32_Caldera_Mac", # Puedes poner la MAC real aquí si quieres
+                    "tarjeta": "ESP32_2", # Puedes poner la MAC real aquí si quieres
                     "nivel_gas": nivel_gas,
                     "evento": evento
                 }
@@ -47,7 +47,7 @@ while True:
                 if res_post.status_code == 200:
                     print(f"➔ [USB ➔ WEB] Datos enviados con éxito: Gas={nivel_gas} | Estado={evento}")
     except Exception as e:
-        print(f"⚠️ Error al leer del USB o postear en Flask: {e}")
+        print(f" Error al leer del USB o postear en Flask: {e}")
 
     # -----------------------------------------------------------------
     # TAREA 2: CONSULTAR A LA API ➔ MANDAR SEÑAL DE APAGADO AL USB
@@ -59,9 +59,9 @@ while True:
         # Si la bandera 'reset_pendiente' está en True, le avisamos al ESP32 por el cable
         if res_get.get("reset_pendiente") == True:
             ser.write(b"RESET\n") # Inyecta la palabra clave por el puerto serie
-            print("🔕 [WEB ➔ USB] Se detectó clic en la web. ¡Enviando orden RESET al ESP32!")
+            print("[WEB ➔ USB] Se detectó clic en la web. ¡Enviando orden RESET al ESP32!")
     except Exception as e:
-        print(f"⚠️ Error al consultar el estado de reinicio en Flask: {e}")
+        print(f" Error al consultar el estado de reinicio en Flask: {e}")
         
     # Espera un breve instante para no saturar el procesador de tu Ubuntu
     time.sleep(0.5)

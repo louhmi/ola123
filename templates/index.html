@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0.5">
     <title>Dashboard - Monitoreo de Gas</title>
     <style>
         body {
@@ -12,7 +13,7 @@
             padding: 20px;
             color: #333;
         }
-        .container {
+        #contenedor-principal {
             max-width: 1000px;
             margin: 0 auto;
         }
@@ -21,9 +22,8 @@
             color: #2c3e50;
             margin-bottom: 30px;
         }
-        /* Tarjeta principal de estado en vivo */
-        .card {
-            background-color: #7f8c8d; /* Color gris inicial (Esperando conexión) */
+        /* DISEÑO DE LA TARJETA USANDO ÚNICAMENTE UN ID */
+        #alerta-card {
             color: white;
             padding: 40px 20px;
             border-radius: 12px;
@@ -32,12 +32,23 @@
             margin-bottom: 30px;
             transition: background-color 0.5s ease;
         }
-        .card h2 { margin: 0 0 10px 0; font-size: 2.2rem; }
-        .card .lectura { font-size: 3.8rem; font-weight: bold; margin: 15px 0; }
-        .card .info { font-size: 1.1rem; opacity: 0.9; margin-bottom: 25px; }
+        #estado { 
+            margin: 0 0 10px 0; 
+            font-size: 2.2rem; 
+        }
+        #nivel-gas { 
+            font-size: 3.8rem; 
+            font-weight: bold; 
+            margin: 15px 0; 
+        }
+        #info-tarjeta { 
+            font-size: 1.1rem; 
+            opacity: 0.9; 
+            margin-bottom: 25px; 
+        }
 
-        /* Botón de Reset para apagar la alarma retenida */
-        .btn-reset {
+        /* DISEÑO DEL BOTÓN DE RESET POR ID */
+        #btn-reset {
             background-color: white;
             color: #333;
             border: none;
@@ -47,24 +58,21 @@
             border-radius: 6px;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.2s ease, background-color 0.2s ease;
+            transition: transform 0.2s ease;
         }
-        .btn-reset:hover {
+        #btn-reset:hover {
             background-color: #f8f9fa;
             transform: scale(1.05);
         }
-        .btn-reset:active {
-            transform: scale(0.98);
-        }
 
-        /* Tabla de Historial Reciente */
-        .tabla-contenedor {
+        /* DISEÑO DEL CONTENEDOR DE LA TABLA POR ID */
+        #tabla-contenedor {
             background-color: white;
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
-        .tabla-contenedor h3 { 
+        #tabla-contenedor h3 { 
             margin-top: 0; 
             color: #2c3e50; 
             border-bottom: 2px solid #ecf0f1; 
@@ -75,27 +83,40 @@
             border-collapse: collapse;
             text-align: left;
         }
-        th, td { padding: 14px; border-bottom: 1px solid #ecf0f1; }
-        th { background-color: #f8f9fa; color: #7f8c8d; font-weight: 600; }
-        tr:hover { background-color: #fafafa; }
+        th, td { 
+            padding: 14px; 
+            border-bottom: 1px solid #ecf0f1; 
+        }
+        th { 
+            background-color: #f8f9fa; 
+            color: #7f8c8d; 
+            font-weight: 600; 
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div id="contenedor-principal">
         <h1>📊 Monitoreo de Gas en Tiempo Real</h1>
 
-        <div id="alerta-card" class="card">
-            <h2 id="estado">Esperando dispositivo...</h2>
-            <div id="nivel_gas" class="lectura">0 PPM</div>
-            <div class="info">Dispositivo origen: <span id="tarjeta">Ninguno</span></div>
+        {% if ultimo.estado == "SEGURO" %}
+            <div id="alerta-card" style="background-color: #2ecc71;">
+        {% elif ultimo.estado == "ADVERTENCIA" %}
+            <div id="alerta-card" style="background-color: #f1c40f;">
+        {% else %}
+            <div id="alerta-card" style="background-color: #e74c3c;">
+        {% endif %}
             
-            <button id="btn-reset" class="btn-reset" onclick="enviarReset()">
-                🔕 Desactivar Alarma
-            </button>
+            <h2 id="estado">{{ ultimo.estado }}</h2>
+            <div id="nivel-gas">{{ ultimo.nivel_gas }} PPM</div>
+            <div id="info-tarjeta">Dispositivo origen: {{ ultimo.tarjeta }}</div>
+            
+            <form action="/api/reset" method="POST">
+                <button type="submit" id="btn-reset">🔕 Desactivar Alarma</button>
+            </form>
         </div>
 
-        <div class="tabla-contenedor">
+        <div id="tabla-contenedor">
             <h3>🗄️ Historial Reciente (Sincronizado con Supabase)</h3>
             <table>
                 <thead>
@@ -107,7 +128,7 @@
                         <th>Estado</th>
                     </tr>
                 </thead>
-                <tbody id="tabla-cuerpo">
+                <tbody>
                     {% if historial %}
                         {% for fila in historial %}
                         <tr>
@@ -128,47 +149,5 @@
         </div>
     </div>
 
-    <script>
-        // 1. Función para actualizar los números y colores en vivo cada segundo
-        function actualizarDashboard() {
-            fetch('/api/status')
-                .then(response => response.json())
-                .then(data => {
-                    // Solo actualizamos si ya se recibió al menos un dato real
-                    if(data.tarjeta !== "Desconectado") {
-                        document.getElementById("estado").innerText = data.estado;
-                        document.getElementById("nivel_gas").innerText = data.nivel_gas + " PPM";
-                        document.getElementById("tarjeta").innerText = data.tarjeta;
-                        
-                        // Modificar el color de la tarjeta según el peligro
-                        let card = document.getElementById("alerta-card");
-                        if (data.estado === "SEGURO") {
-                            card.style.backgroundColor = "#2ecc71"; // Verde
-                        } else if (data.estado === "ADVERTENCIA") {
-                            card.style.backgroundColor = "#f1c40f"; // Amarillo
-                        } else {
-                            card.style.backgroundColor = "#e74c3c"; // Rojo (Peligro Crítico)
-                        }
-                    }
-                })
-                .catch(err => console.error("Error al obtener estatus en vivo:", err));
-        }
-
-        // 2. Función que se ejecuta al presionar el botón para apagar el Buzzer
-        function enviarReset() {
-            fetch('/api/reset', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    alert("🔕 Señal de apagado enviada. La alarma se desactivará en la maqueta.");
-                })
-                .catch(err => {
-                    console.error("Error al enviar el reset:", err);
-                    alert("No se pudo enviar la orden de apagado.");
-                });
-        }
-
-        // Configurar para consultar a la API de Flask cada 1000ms (1 segundo)
-        setInterval(actualizarDashboard, 1000);
-    </script>
 </body>
 </html>
